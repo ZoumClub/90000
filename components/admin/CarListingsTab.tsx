@@ -1,68 +1,75 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { DataTable } from "@/components/ui/data-table";
+import { useDealerCars } from "@/lib/hooks/useDealerCars";
+import { DealerCarDialog } from "./dialogs/DealerCarDialog";
+import { columns } from "./columns/carListingsColumns";
+import { useVisibilityToggle } from "@/lib/hooks/useVisibilityToggle";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabase/client";
 import type { DealerCar } from "@/types/dealerCar";
 
-export const columns: ColumnDef<DealerCar>[] = [
-  {
-    accessorKey: "brand",
-    header: "Brand",
-  },
-  {
-    accessorKey: "model",
-    header: "Model",
-  },
-  {
-    accessorKey: "year",
-    header: "Year",
-  },
-  {
-    accessorKey: "price",
-    header: "Price",
-    cell: ({ row }) => formatPrice(row.getValue("price")),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      return (
-        <Badge variant={status === "approved" ? "success" : "secondary"}>
-          {status}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "created_at",
-    header: "Listed On",
-    cell: ({ row }) => formatDate(row.getValue("created_at")),
-  },
-  {
-    id: "actions",
-    cell: ({ row, table }) => {
-      const car = row.original;
-      return (
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => table.options.meta?.onEdit(car)}
-          >
-            Edit
-          </Button>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            onClick={() => table.options.meta?.onDelete(car.id)}
-          >
-            Delete
-          </Button>
-        </div>
-      );
-    },
-  },
-];
+export function CarListingsTab() {
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedCar, setSelectedCar] = useState<DealerCar | null>(null);
+  const { cars, isLoading, error, refresh } = useDealerCars();
+  const { toggleVisibility } = useVisibilityToggle({
+    table: "dealer_cars",
+    onSuccess: refresh,
+  });
+
+  const handleEdit = (car: DealerCar) => {
+    setSelectedCar(car);
+    setShowDialog(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("dealer_cars").delete().eq("id", id);
+
+      if (error) throw error;
+      toast.success("Car listing deleted successfully");
+      refresh();
+    } catch (error) {
+      console.error("Error deleting car:", error);
+      toast.error("Failed to delete car listing");
+    }
+  };
+
+  const handleClose = () => {
+    setSelectedCar(null);
+    setShowDialog(false);
+    refresh();
+  };
+
+  if (error) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        Failed to load cars. Please try again later.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Car Listings</h2>
+        <Button onClick={() => setShowDialog(true)}>Add New Listing</Button>
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={cars || []}
+        meta={{
+          onEdit: handleEdit,
+          onDelete: handleDelete,
+          onToggleVisibility: toggleVisibility,
+        }}
+      />
+
+      <DealerCarDialog open={showDialog} onClose={handleClose} car={selectedCar} />
+    </div>
+  );
+}
