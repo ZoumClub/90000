@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { getFeaturesList, getDealerCarFeatures, getUserCarFeatures } from "@/lib/api/features";
+import { 
+  getFeaturesList, 
+  getDealerCarFeatures, 
+  getUserCarFeatures, 
+  addDealerCarFeature, 
+  addUserCarFeature, 
+  removeDealerCarFeature, 
+  removeUserCarFeature 
+} from "@/lib/api/features";
 import type { Feature, CarFeature } from "@/lib/api/features";
 
 interface UseCarFeaturesParams {
@@ -19,11 +27,11 @@ export function useCarFeatures({ carId, carType, initialFeatures = [] }: UseCarF
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const carFeatures = carType === 'dealer_car' 
         ? await getDealerCarFeatures(carId)
         : await getUserCarFeatures(carId);
-        
+
       setFeatures(carFeatures.map(f => f.feature));
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch features'));
@@ -31,19 +39,19 @@ export function useCarFeatures({ carId, carType, initialFeatures = [] }: UseCarF
     } finally {
       setIsLoading(false);
     }
-  }, [carType, carId]);
+  }, [carId, carType]); // Include carId and carType as dependencies
 
   const addFeature = useCallback(async (featureId: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       if (carType === 'dealer_car') {
         await addDealerCarFeature(carId, featureId);
       } else {
         await addUserCarFeature(carId, featureId);
       }
-      
+
       await refreshFeatures();
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to add feature'));
@@ -51,19 +59,19 @@ export function useCarFeatures({ carId, carType, initialFeatures = [] }: UseCarF
     } finally {
       setIsLoading(false);
     }
-  }, [carType, refreshFeatures]);
+  }, [carId, carType, refreshFeatures]); // Include carId, carType, and refreshFeatures as dependencies
 
   const removeFeature = useCallback(async (featureId: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       if (carType === 'dealer_car') {
         await removeDealerCarFeature(featureId);
       } else {
         await removeUserCarFeature(featureId);
       }
-      
+
       await refreshFeatures();
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to remove feature'));
@@ -71,7 +79,7 @@ export function useCarFeatures({ carId, carType, initialFeatures = [] }: UseCarF
     } finally {
       setIsLoading(false);
     }
-  }, [carType, refreshFeatures]);
+  }, [carType, refreshFeatures]); // Include carType and refreshFeatures as dependencies
 
   return {
     features,
