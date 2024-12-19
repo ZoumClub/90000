@@ -10,6 +10,7 @@ import { useVisibilityToggle } from "@/lib/hooks/useVisibilityToggle";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import type { DealerCar } from "@/types/dealerCar";
+import type { CarStatus } from "@/lib/modules/cars/constants";
 
 export function CarListingsTab() {
   const [showDialog, setShowDialog] = useState(false);
@@ -38,6 +39,22 @@ export function CarListingsTab() {
     }
   };
 
+  const handleStatusChange = async (id: string, newStatus: CarStatus) => {
+    try {
+      const { error } = await supabase
+        .from("dealer_cars")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success(`Car status updated to ${newStatus}`);
+      refresh();
+    } catch (error) {
+      console.error("Error updating car status:", error);
+      toast.error("Failed to update car status");
+    }
+  };
+
   const handleClose = () => {
     setSelectedCar(null);
     setShowDialog(false);
@@ -63,9 +80,12 @@ export function CarListingsTab() {
         columns={columns}
         data={cars || []}
         meta={{
-          onEdit: handleEdit,
+          onViewDetails: (car: DealerCar) => {
+            setSelectedCar(car);
+            setShowDialog(true);
+          },
+          onStatusChange: handleStatusChange,
           onDelete: handleDelete,
-          onToggleVisibility: toggleVisibility,
         }}
       />
 
